@@ -9,6 +9,7 @@ import com.tomato.sprout.web.anno.WebRequestMapping;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -69,6 +70,10 @@ public class HandleMethodMappingHolder {
                     path = parentRequest.value() + path;
                 }
                 String key = requestMethod.name() + ":" + path;
+                // 重复路径检查
+                if(handleMapping.containsKey(key)) {
+                    throw new RuntimeException("web url mapping repeat");
+                }
                 Parameter[] parameters = method.getParameters();
                 LinkedHashMap<String, Class<?>> params = new LinkedHashMap<>();
                 for (int i = 0; i < parameters.length; i++) {
@@ -78,6 +83,9 @@ public class HandleMethodMappingHolder {
                         params.put(annotation.value(), parameter.getType());
                     }
                     if(parameter.isAnnotationPresent(RequestBody.class)) {
+                        params.put(parameter.getName(), parameter.getType());
+                    }
+                    if(!parameter.isAnnotationPresent(RequestParam.class) && !parameter.isAnnotationPresent(RequestBody.class)) {
                         params.put(parameter.getName(), parameter.getType());
                     }
                 }

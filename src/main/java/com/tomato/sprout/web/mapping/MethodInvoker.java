@@ -2,6 +2,7 @@ package com.tomato.sprout.web.mapping;
 
 import com.google.gson.Gson;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Date;
@@ -43,8 +44,32 @@ public class MethodInvoker {
     private Object[] prepareMethodArguments(HashMap<String, Object> params, LinkedHashMap<String, Class<?>> parameters) {
         Object[] args = new Object[parameters.size()];
         int i = 0;
-        for (Map.Entry<String, Class<?>> entry : parameters.entrySet()) {
-            args[i++] = convertValue(params.get(entry.getKey()), entry.getValue());
+        for (Map.Entry<String, Class<?>> p : parameters.entrySet()) {
+            if(isBasic(p.getValue())) {
+                args[i++] = convertValue(params.get(p.getKey()), p.getValue());
+                continue;
+            }
+            Object newInstance = null;
+            try {
+                newInstance = p.getValue().getDeclaredConstructor().newInstance();
+                for (Map.Entry<String, Object> entry : params.entrySet()) {
+                    Field declaredField = newInstance.getClass().getDeclaredField(entry.getKey());
+                    declaredField.setAccessible(true);
+                    declaredField.set(newInstance, convertValue(params.get(entry.getKey()), declaredField.getType()));
+                }
+            } catch (InstantiationException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
+            args[i++] = newInstance;
+
         }
         return args;
     }
@@ -70,6 +95,22 @@ public class MethodInvoker {
         }
 
         return convertBasicValue(value, targetType);
+    }
+
+    private boolean isBasic(Class<?> targetType) {
+        if (targetType == String.class) {
+            return true;
+        } else if (targetType == Integer.class || targetType == int.class) {
+            return true;
+        } else if (targetType == Long.class || targetType == long.class) {
+            return true;
+        } else if (targetType == Boolean.class || targetType == boolean.class) {
+            return true;
+        } else if (targetType == Double.class || targetType == double.class) {
+            return true;
+        } else if (targetType == Float.class || targetType == float.class) {
+            return true;
+        } else return targetType == Date.class;
     }
 
     private Object convertBasicValue(Object value, Class<?> targetType) {

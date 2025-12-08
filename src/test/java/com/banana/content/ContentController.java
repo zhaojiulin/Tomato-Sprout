@@ -22,17 +22,18 @@ public class ContentController {
     static final Logger logger = Logger.getLogger(ContentController.class.getName());
     @Autowired
     private UserService userService;
-    @WebRequestMapping(value = "/info", method = RequestMethod.POST)
-    public Object index(@RequestBody UserEntity user) {
-        logger.info("index：" + user.getTitle());
-        return user;
+    @WebRequestMapping(value = "/info", method = RequestMethod.GET)
+    public Object index(@RequestParam("title") String title, @RequestParam("age") Integer age) {
+        logger.info("index：" + title);
+        logger.info("age：" + age);
+        return title;
     }
 
     @WebRequestMapping(value = "/hello", method = RequestMethod.POST)
-    public void hello() {
+    public void hello(Integer title, String content) {
         userService.test();
     }
-    @WebRequestMapping(value = "/testReturn", method = RequestMethod.GET)
+    @WebRequestMapping(value = "/testReturn", method = RequestMethod.POST)
     public String testReturn(@RequestParam("title") String title) {
         return userService.testReturn(title);
     }
