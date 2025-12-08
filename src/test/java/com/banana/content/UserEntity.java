@@ -7,8 +7,16 @@ package com.banana.content;
  * @date 2025/10/22 0:37
  */
 public class UserEntity {
-    private String title;
+    private String username;
     private Integer age;
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
     public Integer getAge() {
         return age;
@@ -16,13 +24,5 @@ public class UserEntity {
 
     public void setAge(Integer age) {
         this.age = age;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
     }
 }

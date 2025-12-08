@@ -1,21 +1,24 @@
 package com.banana;
 
+import com.banana.content.UserEntity;
 import com.tomato.sprout.anno.Autowired;
 import com.tomato.sprout.anno.Component;
+import org.apache.catalina.User;
+
+import java.util.List;
 
 @Component("userService")
 public class UserService {
     @Autowired
     private OrderService orderService;
-    private String name;
-
-    public void setName(String name) {
-        this.name = name;
-    }
+    @Autowired
+    private UserMapper userMapper;
 
     public void test() {
-        System.out.println("user test" + name);
-        orderService.order();
+        List<UserEntity> userList = userMapper.getUserByName("sdfasd");
+        for (UserEntity userEntity : userList) {
+            System.out.println(userEntity.getUsername());
+        }
     }
 
     public String testReturn(String title) {

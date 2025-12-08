@@ -29,6 +29,7 @@ public class GetMappingHandle extends AbstractHandleMapping{
             log.info("parameterName: " + parameterName);
             paramMap.put(parameterName, req.getParameter(parameterName));
         }
+        // 对象入参
         try {
             BufferedReader reader = req.getReader();
             StringBuilder jsonBuilder = new StringBuilder();

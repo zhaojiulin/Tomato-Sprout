@@ -14,12 +14,13 @@ import com.tomato.sprout.interfaces.BeanPostProcessor;
 public class PointBeanPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
+        System.out.println("AOP before Initialization:"+beanName);
         return bean;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
-        System.out.println("AOP After Initialization");
+        System.out.println("AOP after Initialization:"+beanName);
         return bean;
     }
 }

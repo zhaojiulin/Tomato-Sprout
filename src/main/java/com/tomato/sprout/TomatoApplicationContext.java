@@ -11,8 +11,11 @@ import com.tomato.sprout.interfaces.ApplicationContextAware;
 import com.tomato.sprout.interfaces.BeanNameAware;
 import com.tomato.sprout.interfaces.BeanPostProcessor;
 import com.tomato.sprout.interfaces.InitializingBean;
+import com.tomato.sprout.orm.TomatoMapperProxyFactory;
+import com.tomato.sprout.orm.anno.RepoMapper;
 import com.tomato.sprout.web.anno.WebController;
 import com.tomato.sprout.web.mapping.HandleMethodMappingHolder;
+import com.tomato.sprout.web.serve.TomcatEmbeddedServer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -38,6 +41,8 @@ public class TomatoApplicationContext {
      */
     private final CircularDependencyCheck circularDependencyCheck = new CircularDependencyCheck();
 
+    private final TomatoMapperProxyFactory tomatoMapperProxyFactory = new TomatoMapperProxyFactory();
+
     /**
      * 扫描bean
      *
@@ -45,11 +50,12 @@ public class TomatoApplicationContext {
      */
     public void scanBeanDefinition(Class<?> primarySource) {
         TomatoBoot componentScan = primarySource.getDeclaredAnnotation(TomatoBoot.class);
-        // 扫描路径
+        // 扫描用户路径
         ClassPathScanner classPathScanner = new ClassPathScanner();
         String applicationPath = componentScan.scanBasePackage().isEmpty() ? primarySource.getPackage().getName() : componentScan.scanBasePackage();
         String[] packages = new String[]{applicationPath};
         Set<Class<?>> classSet = new HashSet<>();
+        frameworkClass(classSet);
         for (String path : packages) {
             classSet.addAll(classPathScanner.scan(path));
         }
@@ -62,22 +68,33 @@ public class TomatoApplicationContext {
     }
 
     /**
+     * 框架class
+     *
+     * @param classSet
+     */
+    private void frameworkClass(Set<Class<?>> classSet) {
+        classSet.add(TomcatEmbeddedServer.class);
+    }
+
+    /**
      * 获取BeanDefinition
      *
      * @param clazz
      */
     private void registerBeanDefinition(Class<?> clazz) {
-        if (clazz.isAnnotation() || clazz.isInterface()) {
+        if (clazz.isAnnotation()) {
             return;
         }
         // 是否有标记这个类是bean
-        if (!clazz.isAnnotationPresent(Component.class) && !clazz.isAnnotationPresent(WebController.class)) {
+        if (!clazz.isAnnotationPresent(Component.class) && !clazz.isAnnotationPresent(WebController.class) && !clazz.isAnnotationPresent(RepoMapper.class)) {
             return;
         }
         String beanName = getClassBeanName(clazz);
         // 解析类，判断当前bean是单例bean，还是原型bean;创建bean信息BeanDefinition
         BeanDefinition beanDefinition = new BeanDefinition();
         beanDefinition.setClazz(clazz);
+        beanDefinition.setMapperInterface(clazz.isInterface() && clazz.isAnnotationPresent(RepoMapper.class));
+        beanDefinition.setNeedProxy(beanDefinition.isMapperInterface());
         if (clazz.isAnnotationPresent(Scope.class)) {
             Scope scopeAnno = clazz.getDeclaredAnnotation(Scope.class);
             beanDefinition.setScope(scopeAnno.value());
@@ -107,7 +124,7 @@ public class TomatoApplicationContext {
      */
     public void refreshBean() {
         beanDefinitionMap.forEach((beanName, beanDefinition) -> {
-            Object bean =getBean(getClassBeanName(beanDefinition.getClazz()));
+            Object bean = getBean(getClassBeanName(beanDefinition.getClazz()));
             singletonObjects.put(beanName, bean);
             HandleMethodMappingHolder.getInstance().processController(beanDefinition.getClazz(), bean);
         });
@@ -117,6 +134,7 @@ public class TomatoApplicationContext {
      * 循环依赖检查
      * bean实例化
      * 循环依赖结束
+     *
      * @param beanName
      * @param beanDefinition
      * @return
@@ -141,11 +159,26 @@ public class TomatoApplicationContext {
     private Object doCreateBean(String beanName, BeanDefinition beanDefinition) {
         Class<?> clazz = beanDefinition.getClazz();
         try {
-            Object instance = clazz.getDeclaredConstructor().newInstance();
+            Object instance;
+            if (beanDefinition.isMapperInterface() && beanDefinition.isNeedProxy()) {
+                instance = tomatoMapperProxyFactory.getProxy(clazz);
+            } else {
+                instance = clazz.getDeclaredConstructor().newInstance();
+            }
             // 依赖注入
             for (Field declaredField : clazz.getDeclaredFields()) {
                 if (declaredField.isAnnotationPresent(Autowired.class)) {
-                    Object bean = getBean(declaredField.getName());
+                    Class<?> fieldType = declaredField.getType();
+                    Object bean;
+                    if (fieldType.isInterface() && fieldType.isAnnotationPresent(RepoMapper.class)) {
+                        bean = getBean(declaredField.getName());
+                        if (Objects.isNull(bean)) {
+                            bean = tomatoMapperProxyFactory.getProxy(clazz);
+                        }
+                    } else {
+                        bean = getBean(declaredField.getName());
+                    }
+
                     Autowired autowiredAnno = declaredField.getDeclaredAnnotation(Autowired.class);
                     if (bean == null && autowiredAnno.required()) {
                         throw new NullPointerException();

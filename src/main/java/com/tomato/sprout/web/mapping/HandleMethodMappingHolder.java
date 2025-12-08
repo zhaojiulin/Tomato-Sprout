@@ -9,7 +9,6 @@ import com.tomato.sprout.web.anno.WebRequestMapping;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -78,13 +77,16 @@ public class HandleMethodMappingHolder {
                 LinkedHashMap<String, Class<?>> params = new LinkedHashMap<>();
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
+                    // 单个形参名称
                     if (parameter.isAnnotationPresent(RequestParam.class)) {
                         RequestParam annotation = parameter.getAnnotation(RequestParam.class);
                         params.put(annotation.value(), parameter.getType());
                     }
+                    // 对象形参
                     if(parameter.isAnnotationPresent(RequestBody.class)) {
                         params.put(parameter.getName(), parameter.getType());
                     }
+                    // 无注解的形参
                     if(!parameter.isAnnotationPresent(RequestParam.class) && !parameter.isAnnotationPresent(RequestBody.class)) {
                         params.put(parameter.getName(), parameter.getType());
                     }

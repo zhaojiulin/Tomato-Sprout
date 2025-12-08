@@ -10,9 +10,6 @@ public class ProcessorTest implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
         System.out.println("ProcessorTest初始化前");
-        if(UserService.class.getSimpleName().toLowerCase(Locale.ROOT).equals(beanName.toLowerCase(Locale.ROOT))) {
-            ((UserService)bean).setName("hahahah");
-        }
         return bean;
     }
 

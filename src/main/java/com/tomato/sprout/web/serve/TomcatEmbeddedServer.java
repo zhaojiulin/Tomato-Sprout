@@ -2,6 +2,7 @@ package com.tomato.sprout.web.serve;
 
 import com.tomato.sprout.TomatoApplicationContext;
 import com.tomato.sprout.anno.Component;
+import com.tomato.sprout.interfaces.ApplicationContextAware;
 import com.tomato.sprout.singleton.ConfigurationManager;
 import com.tomato.sprout.web.servlet.DispatcherServlet;
 import org.apache.catalina.Context;
@@ -19,15 +20,14 @@ import java.io.IOException;
  * @Date 2025/10/18 13:00
  */
 @Component
-public class TomcatEmbeddedServer implements EmbeddedServer {
-    private TomatoApplicationContext tomatoApplicationContext;
-    private int port = 8080;
+public class TomcatEmbeddedServer implements EmbeddedServer, ApplicationContextAware {
+    private int port = 8088;
 
     public TomcatEmbeddedServer() {
     }
 
-    public TomcatEmbeddedServer(TomatoApplicationContext applicationContext) {
-        tomatoApplicationContext = applicationContext;
+    @Override
+    public void setApplicationContext(TomatoApplicationContext applicationContext) {
         String servePort = ConfigurationManager.getInstance().getProperty("serve.port");
         if (servePort != null) {
             port = Integer.parseInt(servePort);
@@ -57,7 +57,7 @@ public class TomcatEmbeddedServer implements EmbeddedServer {
             dispatcher.setLoadOnStartup(1);
 
             tomcat.start();
-            System.out.println("MiniBoot application started on port: " + this.port);
+            System.out.println("TomatoBoot application started on port: " + this.port);
 
             tomcat.getServer().await();
 

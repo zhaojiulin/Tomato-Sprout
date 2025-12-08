@@ -26,6 +26,7 @@ public class ContentController {
     public Object index(@RequestParam("title") String title, @RequestParam("age") Integer age) {
         logger.info("index：" + title);
         logger.info("age：" + age);
+        userService.test();
         return title;
     }
 

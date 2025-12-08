@@ -20,6 +20,10 @@ public class BeanDefinition {
      */
     private BeanScopeType scope;
 
+
+    private boolean isMapperInterface;
+    private boolean needProxy; // 是否需要创建代理
+
     public BeanDefinition() {
     }
 
@@ -42,5 +46,21 @@ public class BeanDefinition {
 
     public void setScope(BeanScopeType scope) {
         this.scope = scope;
+    }
+
+    public boolean isMapperInterface() {
+        return isMapperInterface;
+    }
+
+    public void setMapperInterface(boolean mapperInterface) {
+        isMapperInterface = mapperInterface;
+    }
+
+    public boolean isNeedProxy() {
+        return needProxy;
+    }
+
+    public void setNeedProxy(boolean needProxy) {
+        this.needProxy = needProxy;
     }
 }

@@ -1,11 +1,13 @@
 package com.tomato.sprout;
 
-import com.tomato.sprout.web.serve.TomcatEmbeddedServer;
+import com.tomato.sprout.web.serve.EmbeddedServer;
+import com.tomato.sprout.web.serve.EmbeddedServerFactory;
+
 /**
- * @Description: 容器启动
  * @author zhaojiulin
- * @Date 2025/10/18 14:25
  * @version 1.0
+ * @Description: 容器启动
+ * @Date 2025/10/18 14:25
  */
 public class TomatoBootApplication {
 
@@ -18,6 +20,12 @@ public class TomatoBootApplication {
     }
 
     private static TomatoApplicationContext run(Class<?> primarySource, String[] args) {
+        System.out.println("___________                    __                     _________                           __   \n" +
+                "\\__    ___/___   _____ _____ _/  |_  ____            /   _____/____________  ____  __ ___/  |_ \n" +
+                "  |    | /  _ \\ /     \\\\__  \\\\   __\\/  _ \\   ______  \\_____  \\\\____ \\_  __ \\/  _ \\|  |  \\   __\\\n" +
+                "  |    |(  <_> )  Y Y  \\/ __ \\|  | (  <_> ) /_____/  /        \\  |_> >  | \\(  <_> )  |  /|  |  \n" +
+                "  |____| \\____/|__|_|  (____  /__|  \\____/          /_______  /   __/|__|   \\____/|____/ |__|  \n" +
+                "                     \\/     \\/                              \\/|__|                             ");
         // 创建上下文
         TomatoApplicationContext context = new TomatoApplicationContext();
         // 扫描并注册bean
@@ -31,11 +39,10 @@ public class TomatoBootApplication {
 
     /**
      * 启动服务器 暂时tomcat
-     * @param context 容器上下文
      */
     private static void startTomcatServer(TomatoApplicationContext context) {
-        TomcatEmbeddedServer tomcatEmbeddedServer = new TomcatEmbeddedServer(context);
-        tomcatEmbeddedServer.start();
+        EmbeddedServer embeddedServer = EmbeddedServerFactory.handleServe(context);
+        embeddedServer.start();
     }
 
 }

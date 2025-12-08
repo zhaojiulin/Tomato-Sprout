@@ -1,19 +1,11 @@
 package com.tomato.sprout.web.servlet;
 
-import com.tomato.sprout.TomatoApplicationContext;
 import com.tomato.sprout.constant.RequestMethod;
 import com.tomato.sprout.web.mapping.request.AbstractHandleMapping;
 import com.tomato.sprout.web.mapping.request.HandleMappingFactory;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.logging.Logger;
 
 /**
  * @author zhaojiulin
