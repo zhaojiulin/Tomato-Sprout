@@ -1,5 +1,9 @@
 package com.banana.content;
 
+import com.tomato.sprout.web.model.ReqFile;
+
+import java.util.List;
+
 /**
  * @author zhaojiulin
  * @version 1.0
@@ -9,6 +13,10 @@ package com.banana.content;
 public class UserEntity {
     private String username;
     private Integer age;
+
+    private ReqFile file;
+
+    private List<String> stringList;
 
     public String getUsername() {
         return username;
@@ -24,5 +32,21 @@ public class UserEntity {
 
     public void setAge(Integer age) {
         this.age = age;
+    }
+
+    public ReqFile getFile() {
+        return file;
+    }
+
+    public void setFile(ReqFile file) {
+        this.file = file;
+    }
+
+    public List<String> getStringList() {
+        return stringList;
+    }
+
+    public void setStringList(List<String> stringList) {
+        this.stringList = stringList;
     }
 }

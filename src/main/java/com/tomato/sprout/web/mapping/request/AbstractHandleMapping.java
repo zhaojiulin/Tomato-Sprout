@@ -44,7 +44,7 @@ public abstract class AbstractHandleMapping implements HandleMapping {
 
     private Object doMethod(HandlerMethod handlerMethod, HashMap<String, Object> paramMap, HttpServletResponse resp) throws InvocationTargetException, IllegalAccessException {
         MethodInvoker methodInvoker = new MethodInvoker();
-        return methodInvoker.invokeHandler(handlerMethod, paramMap);
+        return methodInvoker.invokeHandler(handlerMethod, paramMap, resp);
     }
 
     private void sendJsonResponse(HttpServletResponse resp, int status, String json) {

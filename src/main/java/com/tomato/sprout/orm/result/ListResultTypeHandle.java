@@ -48,6 +48,9 @@ public class ListResultTypeHandle<T> extends ResultTypeHandle<T> implements Resu
             }
             for (int i = 0; i < columnNames.size(); i++) {
                 Method setMethod = setMethodMapping.get(columnNames.get(i));
+                if (setMethod == null) {
+                    continue;
+                }
                 Class<?>[] parameterTypes = setMethod.getParameterTypes();
                 try {
                     // 对象成员变量赋值

@@ -1,6 +1,7 @@
 package com.tomato.sprout.web.mapping.request;
 
 import com.tomato.sprout.constant.HttpContentType;
+import com.tomato.sprout.web.model.ReqFile;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.Part;
@@ -13,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author zhaojiulin
@@ -26,15 +26,16 @@ public class PostMappingHandle extends AbstractHandleMapping {
     public HashMap<String, Object> doParam(HttpServletRequest request) {
         HashMap<String, Object> paramMap = new HashMap<>();
         String contentType = request.getContentType();
-        if (HttpContentType.FORM_DATA.getValue().equals(contentType)) {
+        if (contentType.contains(HttpContentType.FORM_DATA.getValue())) {
             // 处理multipart/form-data（包含文件上传）
             try {
                 // 使用Servlet的Part API处理文件上传
                 Collection<Part> parts = request.getParts();
                 for (Part part : parts) {
+                    String submittedFileName = part.getSubmittedFileName();
+                    System.out.println("submittedFileName:"+submittedFileName);
                     String fieldName = part.getName();
-                    System.out.println(fieldName);
-                    if (part.getContentType() != null) {
+                    if (part.getContentType() != null && submittedFileName !=null) {
                         // 获取文件名
                         String fileName = part.getSubmittedFileName();
                         if (fileName != null && !fileName.isEmpty()) {
@@ -49,16 +50,13 @@ public class PostMappingHandle extends AbstractHandleMapping {
                             }
 
                             byte[] fileBytes = baos.toByteArray();
-
-                            // 创建文件信息对象
-                            Map<String, Object> fileInfo = new HashMap<>();
-                            fileInfo.put("fileName", fileName);
-                            fileInfo.put("fileSize", part.getSize());
-                            fileInfo.put("contentType", part.getContentType());
-                            fileInfo.put("fileBytes", fileBytes);
-                            fileInfo.put("originalPart", part); // 可以存储原始Part对象，用于后续处理
-
-                            paramMap.put(fieldName, fileInfo);
+                            ReqFile reqFile = new ReqFile();
+                            reqFile.setFileName(fileName);
+                            reqFile.setFileSize(part.getSize());
+                            reqFile.setContentType(part.getContentType());
+                            reqFile.setFileBytes(fileBytes);
+                            reqFile.setInputStream(part.getInputStream());
+                            paramMap.put(fieldName, reqFile);
                             System.out.println("文件保存成功: " + fileName + " (" + part.getSize() + " bytes)");
                         }
                     } else {
@@ -96,8 +94,8 @@ public class PostMappingHandle extends AbstractHandleMapping {
                     paramMap.put("arg0", jsonBody);
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
         }
         return paramMap;
 

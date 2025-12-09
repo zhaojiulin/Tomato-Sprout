@@ -8,7 +8,7 @@ import com.tomato.sprout.orm.parsing.ParamMappingTokenHandle;
 import com.tomato.sprout.orm.parsing.SqlParseResult;
 import com.tomato.sprout.orm.result.BasicResultTypeHandler;
 import com.tomato.sprout.orm.result.ListResultTypeHandle;
-import com.tomato.sprout.singleton.DatabaseConnectionPool;
+import com.tomato.sprout.unique.DatabaseConnectionPool;
 
 import java.lang.reflect.*;
 import java.math.BigDecimal;

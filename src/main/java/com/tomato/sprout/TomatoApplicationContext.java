@@ -3,6 +3,7 @@ package com.tomato.sprout;
 import com.tomato.sprout.anno.Autowired;
 import com.tomato.sprout.anno.Component;
 import com.tomato.sprout.anno.Scope;
+import com.tomato.sprout.anno.TomatoBoot;
 import com.tomato.sprout.constant.BeanScopeType;
 import com.tomato.sprout.core.BeanDefinition;
 import com.tomato.sprout.core.CircularDependencyCheck;
@@ -40,7 +41,9 @@ public class TomatoApplicationContext {
      * 循环依赖检查类-禁止依赖循环
      */
     private final CircularDependencyCheck circularDependencyCheck = new CircularDependencyCheck();
-
+    /**
+     * mapper代理类创建工厂
+     */
     private final TomatoMapperProxyFactory tomatoMapperProxyFactory = new TomatoMapperProxyFactory();
 
     /**
@@ -63,8 +66,6 @@ public class TomatoApplicationContext {
             // 创建beanDefinition
             registerBeanDefinition(clazz);
         }
-        // 注册前置后置方法
-        registerInternalPostProcessors();
     }
 
     /**
@@ -128,6 +129,28 @@ public class TomatoApplicationContext {
             singletonObjects.put(beanName, bean);
             HandleMethodMappingHolder.getInstance().processController(beanDefinition.getClazz(), bean);
         });
+    }
+
+    /**
+     * 获取完整的bean
+     *
+     * @param beanName
+     * @return
+     */
+    public Object getBean(String beanName) {
+        if (beanDefinitionMap.containsKey(beanName)) {
+            BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+            // 单例bean从单例池获取
+            if (beanDefinition.getScope().equals(BeanScopeType.SINGLETON)) {
+                Object o = singletonObjects.get(beanName);
+                return Objects.isNull(o) ? createBean(beanName, beanDefinition) : o;
+            } else {
+                // 原型模式
+                return createBean(beanName, beanDefinition);
+            }
+        } else {
+            throw new NullPointerException();
+        }
     }
 
     /**
@@ -219,9 +242,7 @@ public class TomatoApplicationContext {
         boolean assignableFromPostProcessor = BeanPostProcessor.class.isAssignableFrom(clazz);
         // BeanPostProcessor 扩展机制 前置
         if (assignableFromPostProcessor) {
-            for (BeanPostProcessor beanPostProcessor : beanPostProcessors) {
-                instance = beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
-            }
+            instance = ((BeanPostProcessor)instance).postProcessBeforeInitialization(instance, beanName);
         }
         // 自定义初始化
         if (instance instanceof InitializingBean) {
@@ -229,33 +250,9 @@ public class TomatoApplicationContext {
         }
         // BeanPostProcessor 扩展机制 后置
         if (assignableFromPostProcessor) {
-            for (BeanPostProcessor beanPostProcessor : beanPostProcessors) {
-                instance = beanPostProcessor.postProcessAfterInitialization(instance, beanName);
-            }
+            instance = ((BeanPostProcessor)instance).postProcessAfterInitialization(instance, beanName);
         }
         return instance;
-    }
-
-    /**
-     * 获取完整的bean
-     *
-     * @param beanName
-     * @return
-     */
-    public Object getBean(String beanName) {
-        if (beanDefinitionMap.containsKey(beanName)) {
-            BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
-            // 单例bean从单例池获取
-            if (beanDefinition.getScope().equals(BeanScopeType.SINGLETON)) {
-                Object o = singletonObjects.get(beanName);
-                return Objects.isNull(o) ? createBean(beanName, beanDefinition) : o;
-            } else {
-                // 原型模式
-                return createBean(beanName, beanDefinition);
-            }
-        } else {
-            throw new NullPointerException();
-        }
     }
 
     private String getClassBeanName(Class<?> clazz) {

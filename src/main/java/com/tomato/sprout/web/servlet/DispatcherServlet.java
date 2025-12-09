@@ -30,6 +30,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     private void doDispatch(HttpServletRequest req, HttpServletResponse resp) {
+
         String reqMethod = req.getMethod();
         AbstractHandleMapping handleMapping = HandleMappingFactory.handleMapping(RequestMethod.valueOf(reqMethod));
         handleMapping.doHandleMapping(req, resp);

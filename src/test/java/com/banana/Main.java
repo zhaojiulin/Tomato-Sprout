@@ -1,12 +1,8 @@
 package com.banana;
 
 import com.tomato.sprout.TomatoApplicationContext;
-import com.tomato.sprout.TomatoBoot;
+import com.tomato.sprout.anno.TomatoBoot;
 import com.tomato.sprout.TomatoBootApplication;
-
-import java.io.IOException;
-import java.net.URL;
-import java.util.Enumeration;
 
 @TomatoBoot
 public class Main {

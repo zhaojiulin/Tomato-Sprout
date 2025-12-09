@@ -1,6 +1,9 @@
 package com.tomato.sprout.web.mapping;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.tomato.sprout.web.model.ReqFile;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -26,11 +29,11 @@ public class MethodInvoker {
      * @return: 执行返回信息
      * @Date: 2025/10/18 13:03
      */
-    public Object invokeHandler(HandlerMethod handlerMethod, HashMap<String, Object> params) throws InvocationTargetException, IllegalAccessException {
+    public Object invokeHandler(HandlerMethod handlerMethod, HashMap<String, Object> params, HttpServletResponse response) throws InvocationTargetException, IllegalAccessException {
         Object controller = handlerMethod.getController();
         Method method = handlerMethod.getMethod();
         method.setAccessible(true);
-        Object[] args = prepareMethodArguments(params, handlerMethod.getParameters());
+        Object[] args = prepareMethodArguments(params, handlerMethod.getParameters(), response);
         return method.invoke(controller, args);
     }
 
@@ -41,7 +44,7 @@ public class MethodInvoker {
      * @param parameters
      * @return
      */
-    private Object[] prepareMethodArguments(HashMap<String, Object> params, LinkedHashMap<String, Class<?>> parameters) {
+    private Object[] prepareMethodArguments(HashMap<String, Object> params, LinkedHashMap<String, Class<?>> parameters, HttpServletResponse response) {
         Object[] args = new Object[parameters.size()];
         int i = 0;
         for (Map.Entry<String, Class<?>> p : parameters.entrySet()) {
@@ -49,24 +52,27 @@ public class MethodInvoker {
                 args[i++] = convertValue(params.get(p.getKey()), p.getValue());
                 continue;
             }
+            // 额外response参数赋值
+            if(HttpServletResponse.class.isAssignableFrom(p.getValue())) {
+                args[i++] = response;
+                continue;
+            }
             Object newInstance = null;
             try {
-                newInstance = p.getValue().getDeclaredConstructor().newInstance();
-                for (Map.Entry<String, Object> entry : params.entrySet()) {
-                    Field declaredField = newInstance.getClass().getDeclaredField(entry.getKey());
-                    declaredField.setAccessible(true);
-                    declaredField.set(newInstance, convertValue(params.get(entry.getKey()), declaredField.getType()));
+                Gson gson = new Gson();
+                try {
+                    // json格式
+                    newInstance = gson.fromJson(params.get(p.getKey()).toString(), p.getValue());
+                } catch (Exception e) {
+                    newInstance = p.getValue().getDeclaredConstructor().newInstance();
+                    for (Map.Entry<String, Object> entry : params.entrySet()) {
+                        Field declaredField = newInstance.getClass().getDeclaredField(entry.getKey());
+                        declaredField.setAccessible(true);
+                        declaredField.set(newInstance, convertValue(params.get(entry.getKey()), declaredField.getType()));
+                    }
                 }
-            } catch (InstantiationException e) {
-                throw new RuntimeException(e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            } catch (InvocationTargetException e) {
-                throw new RuntimeException(e);
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException(e);
-            } catch (NoSuchFieldException e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
             }
             args[i++] = newInstance;
 
@@ -109,6 +115,8 @@ public class MethodInvoker {
         } else if (targetType == Double.class || targetType == double.class) {
             return true;
         } else if (targetType == Float.class || targetType == float.class) {
+            return true;
+        } else if (targetType == ReqFile.class) {
             return true;
         } else return targetType == Date.class;
     }

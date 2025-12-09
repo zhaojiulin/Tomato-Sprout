@@ -1,4 +1,4 @@
-package com.tomato.sprout.singleton;
+package com.tomato.sprout.unique;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -61,6 +61,7 @@ public class DatabaseConnectionPool {
      * @Date: 2025/10/18 19:23
      */
     private void initPool() {
+        System.out.printf("初始化数据库连接池开始：%s%n", url);
         for (int i = 0; i < MAX_POOL_SIZE; i++) {
             try {
                 connectionPool.add(DriverManager.getConnection(url, user, password));
@@ -68,6 +69,7 @@ public class DatabaseConnectionPool {
                 throw new RuntimeException(e);
             }
         }
+        System.out.printf("初始化数据库连接池完成，连接池数：%s，最大连接池数量：%s%n", connectionPool.size(), MAX_POOL_SIZE);
     }
 
     /**

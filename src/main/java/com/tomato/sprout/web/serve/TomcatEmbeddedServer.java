@@ -3,8 +3,9 @@ package com.tomato.sprout.web.serve;
 import com.tomato.sprout.TomatoApplicationContext;
 import com.tomato.sprout.anno.Component;
 import com.tomato.sprout.interfaces.ApplicationContextAware;
-import com.tomato.sprout.singleton.ConfigurationManager;
+import com.tomato.sprout.unique.ConfigurationManager;
 import com.tomato.sprout.web.servlet.DispatcherServlet;
+import com.tomato.sprout.web.servlet.TomatoServletInitializer;
 import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
@@ -12,6 +13,7 @@ import org.apache.catalina.startup.Tomcat;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
 
 /**
  * @author zhaojiulin
@@ -51,6 +53,7 @@ public class TomcatEmbeddedServer implements EmbeddedServer, ApplicationContextA
 
             // 3. 创建上下文并添加映射Servlet
             Context ctx = tomcat.addContext("", null);
+            ctx.addServletContainerInitializer(new TomatoServletInitializer(), new HashSet<>());
             Wrapper dispatcher = Tomcat.addServlet(ctx, "dispatcher", new DispatcherServlet());
             // 映射所有请求到这个Servlet
             dispatcher.addMapping("/*");
