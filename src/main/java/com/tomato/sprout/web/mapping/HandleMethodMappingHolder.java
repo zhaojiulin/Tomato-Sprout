@@ -1,14 +1,17 @@
 package com.tomato.sprout.web.mapping;
 
 import com.tomato.sprout.constant.RequestMethod;
+import com.tomato.sprout.utils.CommonUtils;
 import com.tomato.sprout.web.anno.RequestBody;
 import com.tomato.sprout.web.anno.RequestParam;
 import com.tomato.sprout.web.anno.WebController;
 import com.tomato.sprout.web.anno.WebRequestMapping;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -60,6 +63,12 @@ public class HandleMethodMappingHolder {
         String basePath = webControllerAnnotation.value();
         WebRequestMapping parentRequest = controllerClass.getAnnotation(WebRequestMapping.class);
         for (Method method : controllerClass.getDeclaredMethods()) {
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            try {
+                method = controllerClass.getDeclaredMethod(method.getName(), parameterTypes);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
             if (method.isAnnotationPresent(WebRequestMapping.class)) {
                 WebRequestMapping mappingAnnotation =
                         method.getAnnotation(WebRequestMapping.class);
@@ -74,27 +83,26 @@ public class HandleMethodMappingHolder {
                     throw new RuntimeException("web url mapping repeat");
                 }
                 Parameter[] parameters = method.getParameters();
-                LinkedHashMap<String, Class<?>> params = new LinkedHashMap<>();
+                LinkedHashMap<String, Parameter> indexParams = new LinkedHashMap<>();
+                LinkedHashMap<String, Parameter> params = new LinkedHashMap<>();
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
-                    // 单个形参名称
+                    // 固定下标
+                    indexParams.put("arg" + i, parameter);
+                    // 形参真实名称
+                    params.put(parameter.getName(), parameter);
                     if (parameter.isAnnotationPresent(RequestParam.class)) {
                         RequestParam annotation = parameter.getAnnotation(RequestParam.class);
-                        params.put(annotation.value(), parameter.getType());
-                    }
-                    // 对象形参
-                    if(parameter.isAnnotationPresent(RequestBody.class)) {
-                        params.put(parameter.getName(), parameter.getType());
-                    }
-                    // 无注解的形参
-                    if(!parameter.isAnnotationPresent(RequestParam.class) && !parameter.isAnnotationPresent(RequestBody.class)) {
-                        params.put(parameter.getName(), parameter.getType());
+                        params.put(annotation.value(), parameter);
                     }
                 }
-                HandlerMethod handlerMethod = new HandlerMethod(newInstance, method, path, new RequestMethod[]{requestMethod}, params);
+                HandlerMethod handlerMethod = new HandlerMethod(newInstance, method, path, new RequestMethod[]{requestMethod}, indexParams, params);
                 handleMapping.put(key, handlerMethod);
                 System.out.println("Mapped: " + key + " -> " + method.getName());
             }
+        }
+        for (Map.Entry<String, HandlerMethod> methodEntry : handleMapping.entrySet()) {
+            System.out.println(methodEntry.getKey() + " -> " + methodEntry.getValue());
         }
     }
 

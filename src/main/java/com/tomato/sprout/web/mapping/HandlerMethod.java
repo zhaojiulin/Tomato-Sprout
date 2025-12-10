@@ -3,6 +3,7 @@ package com.tomato.sprout.web.mapping;
 import com.tomato.sprout.constant.RequestMethod;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.LinkedHashMap;
 /**
  * @Description: 控制器-方法信息
@@ -18,15 +19,18 @@ public class HandlerMethod {
     private boolean responseBody;  // 是否返回JSON
 
     // 参数信息：参数名 -> 参数类型
-    private LinkedHashMap<String, Class<?>> parameters;
+    private LinkedHashMap<String, Parameter> parameters;
+    // 参数信息：形参真实名或者requestParam名 -> 参数类型
+    private LinkedHashMap<String, Parameter> nameParameters;
 
     public HandlerMethod(Object controller, Method method, String url,
-                         RequestMethod[] httpMethods, LinkedHashMap<String, Class<?>> parameters) {
+                         RequestMethod[] httpMethods, LinkedHashMap<String, Parameter> parameters,  LinkedHashMap<String, Parameter> nameParameters) {
         this.controller = controller;
         this.method = method;
         this.url = url;
         this.httpMethods = httpMethods;
         this.parameters = parameters;
+        this.nameParameters = nameParameters;
     }
 
     public Object getController() {
@@ -69,11 +73,19 @@ public class HandlerMethod {
         this.responseBody = responseBody;
     }
 
-    public LinkedHashMap<String, Class<?>> getParameters() {
+    public LinkedHashMap<String, Parameter> getParameters() {
         return parameters;
     }
 
-    public void setParameters(LinkedHashMap<String, Class<?>> parameters) {
+    public void setParameters(LinkedHashMap<String, Parameter> parameters) {
         this.parameters = parameters;
+    }
+
+    public LinkedHashMap<String, Parameter> getNameParameters() {
+        return nameParameters;
+    }
+
+    public void setNameParameters(LinkedHashMap<String, Parameter> nameParameters) {
+        this.nameParameters = nameParameters;
     }
 }

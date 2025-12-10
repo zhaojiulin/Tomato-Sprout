@@ -1,13 +1,16 @@
 package com.tomato.sprout.web.mapping;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import com.tomato.sprout.constant.RequestMethod;
+import com.tomato.sprout.utils.CommonUtils;
+import com.tomato.sprout.web.anno.RequestBody;
 import com.tomato.sprout.web.model.ReqFile;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -33,7 +36,7 @@ public class MethodInvoker {
         Object controller = handlerMethod.getController();
         Method method = handlerMethod.getMethod();
         method.setAccessible(true);
-        Object[] args = prepareMethodArguments(params, handlerMethod.getParameters(), response);
+        Object[] args = prepareMethodArguments(params, handlerMethod, response);
         return method.invoke(controller, args);
     }
 
@@ -41,40 +44,29 @@ public class MethodInvoker {
      * 解析方法与入参
      *
      * @param params
-     * @param parameters
+     * @param handlerMethod
      * @return
      */
-    private Object[] prepareMethodArguments(HashMap<String, Object> params, LinkedHashMap<String, Class<?>> parameters, HttpServletResponse response) {
+    private Object[] prepareMethodArguments(HashMap<String, Object> params, HandlerMethod handlerMethod, HttpServletResponse response) {
+        LinkedHashMap<String, Parameter> parameters = handlerMethod.getParameters();
+        LinkedHashMap<String, Parameter> nameParameters = handlerMethod.getNameParameters();
         Object[] args = new Object[parameters.size()];
         int i = 0;
-        for (Map.Entry<String, Class<?>> p : parameters.entrySet()) {
-            if(isBasic(p.getValue())) {
-                args[i++] = convertValue(params.get(p.getKey()), p.getValue());
-                continue;
-            }
+        // todo 重构双重映射
+        for (Map.Entry<String, Parameter> p : parameters.entrySet()) {
+            String paramKey = p.getKey();      // parameters中的键（可能是arg0、arg1或类型名）
+            Parameter pType = p.getValue();    // parameters中的Parameter对象
+
             // 额外response参数赋值
-            if(HttpServletResponse.class.isAssignableFrom(p.getValue())) {
+            if (HttpServletResponse.class.isAssignableFrom(pType.getType())) {
                 args[i++] = response;
                 continue;
             }
-            Object newInstance = null;
-            try {
-                Gson gson = new Gson();
-                try {
-                    // json格式
-                    newInstance = gson.fromJson(params.get(p.getKey()).toString(), p.getValue());
-                } catch (Exception e) {
-                    newInstance = p.getValue().getDeclaredConstructor().newInstance();
-                    for (Map.Entry<String, Object> entry : params.entrySet()) {
-                        Field declaredField = newInstance.getClass().getDeclaredField(entry.getKey());
-                        declaredField.setAccessible(true);
-                        declaredField.set(newInstance, convertValue(params.get(entry.getKey()), declaredField.getType()));
-                    }
-                }
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
+            if (CommonUtils.isBasic(pType.getType())) {
+                args[i++] = convertValue(params.get(p.getKey()), pType.getType());
+                continue;
             }
-            args[i++] = newInstance;
+            args[i++] = resolveComplexParameter(handlerMethod, p, params);
 
         }
         return args;
@@ -103,24 +95,13 @@ public class MethodInvoker {
         return convertBasicValue(value, targetType);
     }
 
-    private boolean isBasic(Class<?> targetType) {
-        if (targetType == String.class) {
-            return true;
-        } else if (targetType == Integer.class || targetType == int.class) {
-            return true;
-        } else if (targetType == Long.class || targetType == long.class) {
-            return true;
-        } else if (targetType == Boolean.class || targetType == boolean.class) {
-            return true;
-        } else if (targetType == Double.class || targetType == double.class) {
-            return true;
-        } else if (targetType == Float.class || targetType == float.class) {
-            return true;
-        } else if (targetType == ReqFile.class) {
-            return true;
-        } else return targetType == Date.class;
-    }
-
+    /**
+     * 基本类型转换
+     *
+     * @param value
+     * @param targetType
+     * @return
+     */
     private Object convertBasicValue(Object value, Class<?> targetType) {
         if (targetType == String.class) {
             return value.toString();
@@ -139,4 +120,95 @@ public class MethodInvoker {
         }
         return value;
     }
+
+    /**
+     * 是否为json
+     *
+     * @param o
+     * @return
+     */
+    public boolean isValidJsonGson(Object o) {
+        if (null == o || CommonUtils.isBasic(o.getClass())) {
+            return false;
+        }
+        String jsonStr = o.toString();
+        if (jsonStr == null || jsonStr.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmed = jsonStr.trim();
+        if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
+            return false;
+        }
+
+        try {
+            Gson gson = new Gson();
+            gson.toJson(jsonStr);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 对象转换和对象创建
+     *
+     * @param handlerMethod
+     * @param p
+     * @param params
+     * @return
+     */
+    private Object resolveComplexParameter(HandlerMethod handlerMethod,
+                                           Map.Entry<String, Parameter> p,
+                                           HashMap<String, Object> params) {
+        Object newInstance = null;
+        Gson gson = new Gson();
+        RequestMethod requestMethod = handlerMethod.getHttpMethods()[0];
+        Parameter parameter = p.getValue();
+        Class<?> paramType = parameter.getType();
+        String paramName = p.getKey();
+        Object paramValue = params.get(paramName);
+        boolean isJson = isValidJsonGson(paramValue);
+
+        try {
+            if (requestMethod == RequestMethod.POST) {
+                boolean hasRequestBody = parameter.isAnnotationPresent(RequestBody.class);
+                newInstance = isJson ?
+                        gson.fromJson(paramValue.toString(), paramType) :
+                        createAndBindObject(paramType, params, hasRequestBody);
+            } else {
+                newInstance = isJson ?
+                        gson.fromJson(paramValue.toString(), paramType) :
+                        createAndBindObject(paramType, params, true);
+            }
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+        return newInstance;
+    }
+
+    private Object createAndBindObject(Class<?> paramType, HashMap<String, Object> params, boolean fields)
+            throws Exception {
+        Object instance = paramType.getDeclaredConstructor().newInstance();
+        if (!fields) {
+            return instance;
+        }
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            String fieldName = entry.getKey();
+            Object fieldValue = entry.getValue();
+
+            try {
+                Field field = paramType.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                Object convertedValue = convertValue(fieldValue, field.getType());
+                field.set(instance, convertedValue);
+            } catch (NoSuchFieldException e) {
+                // 字段不存在，跳过
+            }
+        }
+
+        return instance;
+    }
+
 }

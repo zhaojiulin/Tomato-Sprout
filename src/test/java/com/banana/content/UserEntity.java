@@ -16,6 +16,8 @@ public class UserEntity {
 
     private ReqFile file;
 
+    private ReqFile[] files;
+
     private List<String> stringList;
 
     public String getUsername() {
@@ -48,5 +50,13 @@ public class UserEntity {
 
     public void setStringList(List<String> stringList) {
         this.stringList = stringList;
+    }
+
+    public ReqFile[] getFiles() {
+        return files;
+    }
+
+    public void setFiles(ReqFile[] files) {
+        this.files = files;
     }
 }

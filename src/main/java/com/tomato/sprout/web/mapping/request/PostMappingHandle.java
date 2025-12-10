@@ -1,9 +1,13 @@
 package com.tomato.sprout.web.mapping.request;
 
+import com.google.gson.Gson;
 import com.tomato.sprout.constant.HttpContentType;
+import com.tomato.sprout.web.anno.RequestBody;
+import com.tomato.sprout.web.mapping.HandlerMethod;
 import com.tomato.sprout.web.model.ReqFile;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 
 import java.io.BufferedReader;
@@ -11,9 +15,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * @author zhaojiulin
@@ -35,6 +37,7 @@ public class PostMappingHandle extends AbstractHandleMapping {
                     String submittedFileName = part.getSubmittedFileName();
                     System.out.println("submittedFileName:"+submittedFileName);
                     String fieldName = part.getName();
+                    System.out.println("fieldName:"+fieldName);
                     if (part.getContentType() != null && submittedFileName !=null) {
                         // 获取文件名
                         String fileName = part.getSubmittedFileName();
@@ -79,23 +82,25 @@ public class PostMappingHandle extends AbstractHandleMapping {
                 System.out.println("普通参数: " + paramName + " = " + paramValue);
             }
         }
-        // 出json
-        try {
-            BufferedReader reader = request.getReader();
-            StringBuilder jsonBuilder = new StringBuilder();
-            String line;
-            if (reader.ready()) {
-                while ((line = reader.readLine()) != null) {
-                    jsonBuilder.append(line);
+        if(contentType.contains(HttpContentType.JSON.getValue())) {
+            // 出json
+            try {
+                BufferedReader reader = request.getReader();
+                StringBuilder jsonBuilder = new StringBuilder();
+                String line;
+                if (reader.ready()) {
+                    while ((line = reader.readLine()) != null) {
+                        jsonBuilder.append(line);
+                    }
+                    if (!jsonBuilder.toString().isEmpty()) {
+                        String jsonBody = jsonBuilder.toString();
+                        System.out.println("原始JSON: " + jsonBody);
+                        paramMap.put("arg0", jsonBody);
+                    }
                 }
-                if (!jsonBuilder.toString().isEmpty()) {
-                    String jsonBody = jsonBuilder.toString();
-                    System.out.println("原始JSON: " + jsonBody);
-                    paramMap.put("arg0", jsonBody);
-                }
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
             }
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
         }
         return paramMap;
 

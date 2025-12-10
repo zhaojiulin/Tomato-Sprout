@@ -53,11 +53,8 @@ public class TomcatEmbeddedServer implements EmbeddedServer, ApplicationContextA
 
             // 3. 创建上下文并添加映射Servlet
             Context ctx = tomcat.addContext("", null);
+            // 映射所有请求到Servlet
             ctx.addServletContainerInitializer(new TomatoServletInitializer(), new HashSet<>());
-            Wrapper dispatcher = Tomcat.addServlet(ctx, "dispatcher", new DispatcherServlet());
-            // 映射所有请求到这个Servlet
-            dispatcher.addMapping("/*");
-            dispatcher.setLoadOnStartup(1);
 
             tomcat.start();
             System.out.println("TomatoBoot application started on port: " + this.port);

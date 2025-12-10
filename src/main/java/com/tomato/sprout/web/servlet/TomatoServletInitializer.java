@@ -24,7 +24,8 @@ public class TomatoServletInitializer implements ServletContainerInitializer {
         );
 
         // 3. 设置URL映射
-        registration.addMapping("/*"); // 或你的特定路径，如 "/api/*"
+        registration.addMapping("/*"); // 或你的特定路径，如 "/api/*"`
+        registration.setLoadOnStartup(1);
 
         // 4. 【关键】从注解中读取配置，并显式设置MultipartConfig
         MultipartConfig annotation = DispatcherServlet.class.getAnnotation(MultipartConfig.class);
