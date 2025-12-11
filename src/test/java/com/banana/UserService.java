@@ -25,10 +25,13 @@ public class UserService extends BaseTransactionalService {
                 return userList;
             });
             executeTransactionalVoid(()-> {
-                userMapper.updateAge(1, 15);
+                UserEntity userEntity = new UserEntity();
+                userEntity.setUsername("sdfasd");
+                userEntity.setAge(18);
+                userEntity.setId(1);
+                userMapper.updateAge(userEntity);
                 userMapper.updateName(1, "大美女");
                 // 发生异常
-                int a = 1/0;
             });
         } catch (Exception e) {
             throw new RuntimeException(e);

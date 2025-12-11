@@ -11,6 +11,7 @@ import java.util.List;
  * @date 2025/10/22 0:37
  */
 public class UserEntity {
+    private Integer id;
     private String username;
     private Integer age;
 
@@ -19,6 +20,14 @@ public class UserEntity {
     private ReqFile[] files;
 
     private List<String> stringList;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
     public String getUsername() {
         return username;

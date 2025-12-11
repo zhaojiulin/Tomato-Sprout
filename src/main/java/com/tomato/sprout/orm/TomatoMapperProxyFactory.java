@@ -1,6 +1,5 @@
 package com.tomato.sprout.orm;
 
-
 import com.tomato.sprout.orm.anno.RepoExec;
 import com.tomato.sprout.orm.anno.RepoParam;
 import com.tomato.sprout.orm.handle.BasicTypeHandle;
@@ -10,13 +9,25 @@ import com.tomato.sprout.orm.result.BasicResultTypeHandler;
 import com.tomato.sprout.orm.result.ListResultTypeHandle;
 import com.tomato.sprout.orm.transaction.BaseTransactionalService;
 import com.tomato.sprout.unique.DatabaseConnectionPool;
-import com.tomato.sprout.utils.CommonUtils;
-
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.Connection;
 import java.sql.Date;
-import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 
 public class TomatoMapperProxyFactory {
     static {
@@ -40,7 +51,7 @@ public class TomatoMapperProxyFactory {
         // 根据方法返回类型封装数据
 
         Object proxyInstance = Proxy.newProxyInstance(ClassLoader.getSystemClassLoader(), new Class[]{clazz}, (proxy, method, args) -> {
-            if(OBJECT_METHODS.contains(method.getName())) {
+            if (OBJECT_METHODS.contains(method.getName())) {
                 return handleObjectMethod(proxy, method, args);
             }
             // 获取当前数据库连接
@@ -62,7 +73,8 @@ public class TomatoMapperProxyFactory {
                 if (shouldCloseConnection && connection != null) {
                     try {
                         DatabaseConnectionPool.getInstance().releaseConnection(connection);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         });
@@ -84,16 +96,34 @@ public class TomatoMapperProxyFactory {
         // 预编译
         List<Object> params = new ArrayList<>();
         for (int i = 0; i < sqlParseResult.getParamList().size(); i++) {
-            Object object = paramMapping.get(sqlParseResult.getParamList().get(i));
-            // 非基础类型--实体对象/hashmap
-            if(!CommonUtils.isBasic(object.getClass())) {
-
+            Object object = null;
+            // 'user.name'
+            String paramName = sqlParseResult.getParamList().get(i);
+            String[] ps = paramName.split("\\.");
+            if (ps.length > 1) {
+                Object argVal = paramMapping.get(ps[0]);
+                if (argVal != null) {
+                    if (argVal instanceof HashMap<?, ?>) {
+                        object = ((Map<?, ?>) argVal).get(ps[1]);
+                    } else {
+                        try {
+                            Field declaredField = argVal.getClass().getDeclaredField(ps[1]);
+                            declaredField.setAccessible(true);
+                            object = declaredField.get(argVal);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            } else {
+                object = paramMapping.get(ps[0]);
             }
             params.add(object);
             BasicTypeHandle<?> basicTypeHandle = new BasicTypeHandle<>(object.getClass());
             basicTypeHandle.setParameter(preparedStatement, i + 1, object);
         }
-        System.out.println("SQL："+ sqlParseResult.getParseSql());
+        System.out.println("SQL：" + sqlParseResult.getParseSql());
         System.out.println("params：" + params);
         // 执行
         preparedStatement.execute();
