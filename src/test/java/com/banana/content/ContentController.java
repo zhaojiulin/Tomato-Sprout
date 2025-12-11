@@ -30,8 +30,8 @@ public class ContentController {
     @Autowired
     private UserService userService;
     @WebRequestMapping(value = "/test1", method = RequestMethod.GET)
-    public Object test1(String username) {
-        return username;
+    public void test1(String username) {
+        userService.test();
     }
     @WebRequestMapping(value = "/test2", method = RequestMethod.GET)
     public Object test2(@RequestParam("username") String username) {

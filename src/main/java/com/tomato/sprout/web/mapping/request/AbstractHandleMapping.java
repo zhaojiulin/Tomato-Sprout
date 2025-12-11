@@ -37,7 +37,8 @@ public abstract class AbstractHandleMapping implements HandleMapping {
         try {
             Object result = doMethod(handlerMethod, hashMap, resp);
             sendJsonResponse(resp, 200, Objects.nonNull(result) ? result.toString() : "");
-        } catch (InvocationTargetException | IllegalAccessException e) {
+        } catch (Exception e ) {
+            e.printStackTrace();
             sendJsonResponse(resp, 500, "{\"error\": \"Invocation ERROR: " + handlerMethod.getHttpMethods()[0] + " " + handlerMethod.getUrl() + "\"}");
         }
     }

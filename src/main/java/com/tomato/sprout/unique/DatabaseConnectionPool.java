@@ -79,20 +79,24 @@ public class DatabaseConnectionPool {
      * @return: Connection 数据库连接
      * @Date: 2025/10/18 19:23
      */
-    public synchronized Connection getConnection() throws SQLException {
-        if (connectionPool.isEmpty()) {
-            throw new RuntimeException("Pool is empty");
+    public synchronized Connection getConnection() {
+        try {
+            if (connectionPool.isEmpty()) {
+                throw new RuntimeException("Pool is empty");
+            }
+            // 取出一个连接
+            Connection connection = connectionPool.remove(connectionPool.size() - 1);
+            // 连接失效 重新创建并放入连接池
+            if (null == connection || connection.isClosed() || !connection.isValid(maxWaitTime)) {
+                connection = DriverManager.getConnection(url, user, password);
+                connectionPool.add(connection);
+            }
+            // 放入使用连接池
+            usedConnections.add(connection);
+            return connection;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-        // 取出一个连接
-        Connection connection = connectionPool.remove(connectionPool.size() - 1);
-        // 连接失效 重新创建并放入连接池
-        if (null == connection || connection.isClosed() || !connection.isValid(maxWaitTime)) {
-            connection = DriverManager.getConnection(url, user, password);
-            connectionPool.add(connection);
-        }
-        // 放入使用连接池
-        usedConnections.add(connection);
-        return connection;
     }
 
     /**

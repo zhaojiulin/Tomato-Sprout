@@ -19,6 +19,9 @@ public interface UserMapper {
     @RepoExec("select * from user_test where username = #{username}")
     public UserEntity getUser(@RepoParam("username") String username);
 
-    @RepoExec("update user_test set age = #{age} where username = #{username}")
-    public Integer updateAge(@RepoParam("username") String username, @RepoParam("age") Integer age);
+    @RepoExec("update user_test set age = #{age} where id = #{id}")
+    public Integer updateAge(@RepoParam("id") Integer id, @RepoParam("age") Integer age);
+
+    @RepoExec("update user_test set username = #{username} where id = #{id}")
+    public Integer updateName(@RepoParam("id") Integer id,@RepoParam("username") String username);
 }

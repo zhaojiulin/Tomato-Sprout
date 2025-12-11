@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.tomato.sprout.constant.RequestMethod;
 import com.tomato.sprout.utils.CommonUtils;
 import com.tomato.sprout.web.anno.RequestBody;
-import com.tomato.sprout.web.model.ReqFile;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Field;
@@ -16,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author zhaojiulin
@@ -49,24 +49,34 @@ public class MethodInvoker {
      */
     private Object[] prepareMethodArguments(HashMap<String, Object> params, HandlerMethod handlerMethod, HttpServletResponse response) {
         LinkedHashMap<String, Parameter> parameters = handlerMethod.getParameters();
-        LinkedHashMap<String, Parameter> nameParameters = handlerMethod.getNameParameters();
         Object[] args = new Object[parameters.size()];
         int i = 0;
-        // todo 重构双重映射
         for (Map.Entry<String, Parameter> p : parameters.entrySet()) {
-            String paramKey = p.getKey();      // parameters中的键（可能是arg0、arg1或类型名）
+            String paramKey = p.getKey();      // parameters中的键（是arg0、arg1）
             Parameter pType = p.getValue();    // parameters中的Parameter对象
 
-            // 额外response参数赋值
+            Object argVal = params.get(paramKey);
+            // 真实形参名
+            String argName = pType.getName();
+            if (Objects.isNull(argVal)) {
+                argVal = params.get(argName);
+            }
+            // 特殊参数
             if (HttpServletResponse.class.isAssignableFrom(pType.getType())) {
                 args[i++] = response;
                 continue;
             }
+            // 基础参数
             if (CommonUtils.isBasic(pType.getType())) {
-                args[i++] = convertValue(params.get(p.getKey()), pType.getType());
+                if(argVal instanceof HashMap<?,?>) {
+                    Map<?, ?> sourceMap = (Map<?, ?>) argVal;
+                    argVal = sourceMap.get(argName);
+                }
+                args[i++] = convertValue(argVal, pType.getType());
                 continue;
             }
-            args[i++] = resolveComplexParameter(handlerMethod, p, params);
+            // 复杂对象
+            args[i++] = resolveComplexParameter(handlerMethod.getHttpMethods()[0], p, argVal == null ? params : argVal);
 
         }
         return args;
@@ -87,11 +97,6 @@ public class MethodInvoker {
         if (targetType.isInstance(value)) {
             return value;
         }
-
-        if (!targetType.isPrimitive()) {
-            return new Gson().fromJson(value.toString(), targetType);
-        }
-
         return convertBasicValue(value, targetType);
     }
 
@@ -128,7 +133,7 @@ public class MethodInvoker {
      * @return
      */
     public boolean isValidJsonGson(Object o) {
-        if (null == o || CommonUtils.isBasic(o.getClass())) {
+        if (null == o) {
             return false;
         }
         String jsonStr = o.toString();
@@ -150,36 +155,36 @@ public class MethodInvoker {
         }
     }
 
+    private boolean isCastJson(Object o, Class<?> targetType) {
+        try {
+            Gson gson = new Gson();
+            gson.fromJson(o.toString(), targetType);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /**
      * 对象转换和对象创建
      *
-     * @param handlerMethod
+     * @param requestMethod
      * @param p
-     * @param params
+     * @param object
      * @return
      */
-    private Object resolveComplexParameter(HandlerMethod handlerMethod,
+    private Object resolveComplexParameter(RequestMethod requestMethod,
                                            Map.Entry<String, Parameter> p,
-                                           HashMap<String, Object> params) {
+                                           Object object) {
         Object newInstance = null;
-        Gson gson = new Gson();
-        RequestMethod requestMethod = handlerMethod.getHttpMethods()[0];
         Parameter parameter = p.getValue();
         Class<?> paramType = parameter.getType();
-        String paramName = p.getKey();
-        Object paramValue = params.get(paramName);
-        boolean isJson = isValidJsonGson(paramValue);
-
         try {
             if (requestMethod == RequestMethod.POST) {
                 boolean hasRequestBody = parameter.isAnnotationPresent(RequestBody.class);
-                newInstance = isJson ?
-                        gson.fromJson(paramValue.toString(), paramType) :
-                        createAndBindObject(paramType, params, hasRequestBody);
+                newInstance = createAndBindObject(paramType, object, hasRequestBody);
             } else {
-                newInstance = isJson ?
-                        gson.fromJson(paramValue.toString(), paramType) :
-                        createAndBindObject(paramType, params, true);
+                newInstance = createAndBindObject(paramType, object, true);
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -188,13 +193,17 @@ public class MethodInvoker {
         return newInstance;
     }
 
-    private Object createAndBindObject(Class<?> paramType, HashMap<String, Object> params, boolean fields)
+    private Object createAndBindObject(Class<?> paramType, Object object, boolean fields)
             throws Exception {
+        if (isValidJsonGson(object) && isCastJson(object, paramType)) {
+            return new Gson().fromJson(object.toString(), paramType);
+        }
         Object instance = paramType.getDeclaredConstructor().newInstance();
         if (!fields) {
             return instance;
         }
-        for (Map.Entry<String, Object> entry : params.entrySet()) {
+        Map<String, Object> objectMap = objectToMap(object);
+        for (Map.Entry<String, Object> entry : objectMap.entrySet()) {
             String fieldName = entry.getKey();
             Object fieldValue = entry.getValue();
 
@@ -209,6 +218,27 @@ public class MethodInvoker {
         }
 
         return instance;
+    }
+
+    public static Map<String, Object> objectToMap(Object obj) throws Exception {
+        Map<String, Object> map = new HashMap<>();
+        if (obj instanceof Map) {
+            Map<?, ?> sourceMap = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : sourceMap.entrySet()) {
+                Object key = entry.getKey();
+                Object value = entry.getValue();
+
+                // 如果 key 是字符串，直接放入
+                if (key instanceof String) {
+                    map.put((String) key, value);
+                }
+                // 如果 key 不是字符串，转换为字符串
+                else if (key != null) {
+                    map.put(key.toString(), value);
+                }
+            }
+        }
+        return map;
     }
 
 }

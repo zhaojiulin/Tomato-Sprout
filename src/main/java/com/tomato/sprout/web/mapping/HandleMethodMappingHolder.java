@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -83,20 +84,19 @@ public class HandleMethodMappingHolder {
                     throw new RuntimeException("web url mapping repeat");
                 }
                 Parameter[] parameters = method.getParameters();
-                LinkedHashMap<String, Parameter> indexParams = new LinkedHashMap<>();
-                LinkedHashMap<String, Parameter> params = new LinkedHashMap<>();
+                LinkedHashMap<String, Parameter> argParams = new LinkedHashMap<>();
+                HashMap<String, String> argToRealField = new HashMap<>();
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
-                    // 固定下标
-                    indexParams.put("arg" + i, parameter);
-                    // 形参真实名称
-                    params.put(parameter.getName(), parameter);
+                    String name = "arg" + i;
+                    // 参数名
                     if (parameter.isAnnotationPresent(RequestParam.class)) {
                         RequestParam annotation = parameter.getAnnotation(RequestParam.class);
-                        params.put(annotation.value(), parameter);
+                        name = annotation.value();
                     }
+                    argParams.put(name, parameter);
                 }
-                HandlerMethod handlerMethod = new HandlerMethod(newInstance, method, path, new RequestMethod[]{requestMethod}, indexParams, params);
+                HandlerMethod handlerMethod = new HandlerMethod(newInstance, method, path, new RequestMethod[]{requestMethod}, argParams, argToRealField);
                 handleMapping.put(key, handlerMethod);
                 System.out.println("Mapped: " + key + " -> " + method.getName());
             }

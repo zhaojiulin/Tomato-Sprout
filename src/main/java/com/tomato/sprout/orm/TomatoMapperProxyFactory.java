@@ -8,7 +8,9 @@ import com.tomato.sprout.orm.parsing.ParamMappingTokenHandle;
 import com.tomato.sprout.orm.parsing.SqlParseResult;
 import com.tomato.sprout.orm.result.BasicResultTypeHandler;
 import com.tomato.sprout.orm.result.ListResultTypeHandle;
+import com.tomato.sprout.orm.transaction.BaseTransactionalService;
 import com.tomato.sprout.unique.DatabaseConnectionPool;
+import com.tomato.sprout.utils.CommonUtils;
 
 import java.lang.reflect.*;
 import java.math.BigDecimal;
@@ -41,39 +43,66 @@ public class TomatoMapperProxyFactory {
             if(OBJECT_METHODS.contains(method.getName())) {
                 return handleObjectMethod(proxy, method, args);
             }
-            // sql
-            RepoExec annotation = method.getAnnotation(RepoExec.class);
-            String sql = annotation.value();
-            // sql处理为预编译使用
-            ParamMappingTokenHandle paramMappingTokenHandle = new ParamMappingTokenHandle();
-            SqlParseResult sqlParseResult = paramMappingTokenHandle.handleToken(sql);
-            // 数据库连接池
-            DatabaseConnectionPool databaseConnectionPool = DatabaseConnectionPool.getInstance();
-            Connection connection = databaseConnectionPool.getConnection();
-            PreparedStatement preparedStatement = connection.prepareStatement(sqlParseResult.getParseSql());
-            // 参数映射关系
-            HashMap<String, Object> paramMapping = paramValueMapping(method, args);
-            // 预编译
-            List<Object> params = new ArrayList<>();
-            for (int i = 0; i < sqlParseResult.getParamList().size(); i++) {
-                Object object = paramMapping.get(sqlParseResult.getParamList().get(i));
-                params.add(object);
-                BasicTypeHandle<?> basicTypeHandle = new BasicTypeHandle<>(object.getClass());
-                basicTypeHandle.setParameter(preparedStatement, i + 1, object);
+            // 获取当前数据库连接
+            Connection connection = BaseTransactionalService.ConnectionHolder.getConnection();
+            boolean shouldCloseConnection = false;
+            try {
+                // 2. 如果没有事务连接，创建新连接
+                if (connection == null) {
+                    connection = DatabaseConnectionPool.getInstance().getConnection();
+                    BaseTransactionalService.ConnectionHolder.setConnection(connection);
+                    shouldCloseConnection = true;
+                }
+
+                // 3. 执行SQL
+                return executeSql(method, args, connection);
+
+            } finally {
+                // 4. 非事务模式下关闭连接
+                if (shouldCloseConnection && connection != null) {
+                    try {
+                        DatabaseConnectionPool.getInstance().releaseConnection(connection);
+                    } catch (Exception ignored) {}
+                }
             }
-            System.out.println("SQL："+ sqlParseResult.getParseSql());
-            System.out.println("params：" + params);
-            // 执行
-            preparedStatement.execute();
-            ResultSet resultSet = preparedStatement.getResultSet();
-            // 返回数据处理
-            Object result = getResult(method, resultSet);
-            // 归还连接池
-            databaseConnectionPool.releaseConnection(connection);
-            return result;
         });
         T proxyInstance1 = (T) proxyInstance;
         return proxyInstance1;
+    }
+
+    private Object executeSql(Method method, Object[] args, Connection connection) throws SQLException {
+        RepoExec annotation = method.getAnnotation(RepoExec.class);
+        String sql = annotation.value();
+        // sql处理为预编译使用
+        ParamMappingTokenHandle paramMappingTokenHandle = new ParamMappingTokenHandle();
+        SqlParseResult sqlParseResult = paramMappingTokenHandle.handleToken(sql);
+        // 数据库连接池
+        DatabaseConnectionPool databaseConnectionPool = DatabaseConnectionPool.getInstance();
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlParseResult.getParseSql());
+        // 参数映射关系
+        HashMap<String, Object> paramMapping = paramValueMapping(method, args);
+        // 预编译
+        List<Object> params = new ArrayList<>();
+        for (int i = 0; i < sqlParseResult.getParamList().size(); i++) {
+            Object object = paramMapping.get(sqlParseResult.getParamList().get(i));
+            // 非基础类型--实体对象/hashmap
+            if(!CommonUtils.isBasic(object.getClass())) {
+
+            }
+            params.add(object);
+            BasicTypeHandle<?> basicTypeHandle = new BasicTypeHandle<>(object.getClass());
+            basicTypeHandle.setParameter(preparedStatement, i + 1, object);
+        }
+        System.out.println("SQL："+ sqlParseResult.getParseSql());
+        System.out.println("params：" + params);
+        // 执行
+        preparedStatement.execute();
+        ResultSet resultSet = preparedStatement.getResultSet();
+        // 返回数据处理
+        Object result = getResult(method, resultSet);
+        // 归还连接池
+        databaseConnectionPool.releaseConnection(connection);
+        return result;
     }
 
     private <T> Object getResult(Method method, ResultSet resultSet) throws SQLException {

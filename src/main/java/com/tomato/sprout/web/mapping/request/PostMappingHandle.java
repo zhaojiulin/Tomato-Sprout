@@ -27,6 +27,7 @@ public class PostMappingHandle extends AbstractHandleMapping {
     @Override
     public HashMap<String, Object> doParam(HttpServletRequest request) {
         HashMap<String, Object> paramMap = new HashMap<>();
+        HashMap<String, Object> objMap = new HashMap<>();
         String contentType = request.getContentType();
         if (contentType.contains(HttpContentType.FORM_DATA.getValue())) {
             // 处理multipart/form-data（包含文件上传）
@@ -59,19 +60,21 @@ public class PostMappingHandle extends AbstractHandleMapping {
                             reqFile.setContentType(part.getContentType());
                             reqFile.setFileBytes(fileBytes);
                             reqFile.setInputStream(part.getInputStream());
-                            paramMap.put(fieldName, reqFile);
+                            objMap.put(fieldName, reqFile);
+                            paramMap.put(fieldName, objMap);
                             System.out.println("文件保存成功: " + fileName + " (" + part.getSize() + " bytes)");
                         }
                     } else {
                         // 这是普通文本字段
                         String fieldValue = readPartAsString(part);
-                        paramMap.put(fieldName, fieldValue);
+                        objMap.put(fieldName, fieldValue);
                         System.out.println("普通字段: " + fieldName + " = " + fieldValue);
                     }
                 }
             } catch (IOException | ServletException e) {
                 throw new RuntimeException("处理multipart/form-data失败", e);
             }
+            paramMap.put("arg0", objMap);
         } else {
             // 2. 处理普通application/x-www-form-urlencoded表单参数
             Enumeration<String> parameterNames = request.getParameterNames();
@@ -82,6 +85,8 @@ public class PostMappingHandle extends AbstractHandleMapping {
                 System.out.println("普通参数: " + paramName + " = " + paramValue);
             }
         }
+
+
         if(contentType.contains(HttpContentType.JSON.getValue())) {
             // 出json
             try {
@@ -90,7 +95,11 @@ public class PostMappingHandle extends AbstractHandleMapping {
                 String line;
                 if (reader.ready()) {
                     while ((line = reader.readLine()) != null) {
-                        jsonBuilder.append(line);
+                        String s = new String(line.getBytes(), StandardCharsets.UTF_8);
+                        if(!contentType.contains("utf-8")) {
+                            s = new String(line.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                        }
+                        jsonBuilder.append(s);
                     }
                     if (!jsonBuilder.toString().isEmpty()) {
                         String jsonBody = jsonBuilder.toString();

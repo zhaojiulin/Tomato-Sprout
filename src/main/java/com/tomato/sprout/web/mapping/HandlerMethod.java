@@ -4,6 +4,7 @@ import com.tomato.sprout.constant.RequestMethod;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 /**
  * @Description: 控制器-方法信息
@@ -20,17 +21,19 @@ public class HandlerMethod {
 
     // 参数信息：参数名 -> 参数类型
     private LinkedHashMap<String, Parameter> parameters;
-    // 参数信息：形参真实名或者requestParam名 -> 参数类型
-    private LinkedHashMap<String, Parameter> nameParameters;
+    // 方法参数名与形参真实名称映射
+    private HashMap<String, String> argToRealField = new HashMap<>();
 
     public HandlerMethod(Object controller, Method method, String url,
-                         RequestMethod[] httpMethods, LinkedHashMap<String, Parameter> parameters,  LinkedHashMap<String, Parameter> nameParameters) {
+                         RequestMethod[] httpMethods, LinkedHashMap<String,
+                            Parameter> parameters,
+                         HashMap<String, String> argToRealField) {
         this.controller = controller;
         this.method = method;
         this.url = url;
         this.httpMethods = httpMethods;
         this.parameters = parameters;
-        this.nameParameters = nameParameters;
+        this.argToRealField = argToRealField;
     }
 
     public Object getController() {
@@ -81,11 +84,11 @@ public class HandlerMethod {
         this.parameters = parameters;
     }
 
-    public LinkedHashMap<String, Parameter> getNameParameters() {
-        return nameParameters;
+    public HashMap<String, String> getArgToRealField() {
+        return argToRealField;
     }
 
-    public void setNameParameters(LinkedHashMap<String, Parameter> nameParameters) {
-        this.nameParameters = nameParameters;
+    public void setArgToRealField(HashMap<String, String> argToRealField) {
+        this.argToRealField = argToRealField;
     }
 }

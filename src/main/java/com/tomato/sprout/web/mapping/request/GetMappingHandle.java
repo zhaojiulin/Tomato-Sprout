@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.logging.Logger;
@@ -23,6 +24,7 @@ public class GetMappingHandle extends AbstractHandleMapping{
     @Override
     public HashMap<String, Object> doParam(HttpServletRequest req) {
         HashMap<String, Object> paramMap = new HashMap<>();
+        String contentType = req.getContentType();
         Enumeration<String> parameterNames = req.getParameterNames();
         while (parameterNames.hasMoreElements()) {
             String parameterName = parameterNames.nextElement();
@@ -36,7 +38,11 @@ public class GetMappingHandle extends AbstractHandleMapping{
             String line;
 
             while ((line = reader.readLine()) != null) {
-                jsonBuilder.append(line);
+                String s = new String(line.getBytes(), StandardCharsets.UTF_8);
+                if(!contentType.contains("utf-8")) {
+                    s = new String(line.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                }
+                jsonBuilder.append(s);
             }
             if(!jsonBuilder.isEmpty()) {
                 String jsonBody = jsonBuilder.toString();
