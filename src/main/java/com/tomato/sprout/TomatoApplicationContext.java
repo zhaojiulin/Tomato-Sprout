@@ -4,6 +4,11 @@ import com.tomato.sprout.anno.Autowired;
 import com.tomato.sprout.anno.Component;
 import com.tomato.sprout.anno.Scope;
 import com.tomato.sprout.anno.TomatoBoot;
+import com.tomato.sprout.aop.AopProxyFactory;
+import com.tomato.sprout.aop.anno.AfterExec;
+import com.tomato.sprout.aop.anno.AopAdvice;
+import com.tomato.sprout.aop.anno.BeforeExec;
+import com.tomato.sprout.aop.interfaces.AopExecAdvice;
 import com.tomato.sprout.constant.BeanScopeType;
 import com.tomato.sprout.core.BeanDefinition;
 import com.tomato.sprout.core.CircularDependencyCheck;
@@ -12,7 +17,7 @@ import com.tomato.sprout.interfaces.ApplicationContextAware;
 import com.tomato.sprout.interfaces.BeanNameAware;
 import com.tomato.sprout.interfaces.BeanPostProcessor;
 import com.tomato.sprout.interfaces.InitializingBean;
-import com.tomato.sprout.orm.TomatoMapperProxyFactory;
+import com.tomato.sprout.orm.MapperProxyFactory;
 import com.tomato.sprout.orm.anno.RepoMapper;
 import com.tomato.sprout.web.anno.WebController;
 import com.tomato.sprout.web.mapping.HandleMethodMappingHolder;
@@ -20,7 +25,12 @@ import com.tomato.sprout.web.serve.TomcatEmbeddedServer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -37,6 +47,8 @@ public class TomatoApplicationContext {
      * 实例化BeanPostProcessor
      */
     private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<>();
+
+    private final ConcurrentHashMap<Class<?>, List<AopExecAdvice>> beanToAdvice = new ConcurrentHashMap<>();
     /**
      * 循环依赖检查类-禁止依赖循环
      */
@@ -44,7 +56,8 @@ public class TomatoApplicationContext {
     /**
      * mapper代理类创建工厂
      */
-    private final TomatoMapperProxyFactory tomatoMapperProxyFactory = new TomatoMapperProxyFactory();
+    private final MapperProxyFactory mapperProxyFactory = new MapperProxyFactory();
+    private final AopProxyFactory aopProxyFactory = new AopProxyFactory();
 
     /**
      * 扫描bean
@@ -66,6 +79,8 @@ public class TomatoApplicationContext {
             // 创建beanDefinition
             registerBeanDefinition(clazz);
         }
+        registerInternalPostProcessors();
+        registerInternalPostAdvice();
     }
 
     /**
@@ -87,7 +102,7 @@ public class TomatoApplicationContext {
             return;
         }
         // 是否有标记这个类是bean
-        if (!clazz.isAnnotationPresent(Component.class) && !clazz.isAnnotationPresent(WebController.class) && !clazz.isAnnotationPresent(RepoMapper.class)) {
+        if (!clazz.isAnnotationPresent(Component.class) && !clazz.isAnnotationPresent(WebController.class) && !clazz.isAnnotationPresent(RepoMapper.class) && !clazz.isAnnotationPresent(com.tomato.sprout.aop.anno.AopAdvice.class)) {
             return;
         }
         String beanName = getClassBeanName(clazz);
@@ -117,6 +132,15 @@ public class TomatoApplicationContext {
         for (BeanDefinition beanDefinition : processorBeanDefinition) {
             Object bean = getBean(getClassBeanName(beanDefinition.getClazz()));
             beanPostProcessors.add((BeanPostProcessor) bean);
+        }
+    }
+
+    public void registerInternalPostAdvice() {
+        List<BeanDefinition> processorBeanDefinition = beanDefinitionMap.values().stream()
+                .filter(beanDefinition -> AopExecAdvice.class.isAssignableFrom(beanDefinition.getClazz()))
+                .toList();
+        for (BeanDefinition beanDefinition : processorBeanDefinition) {
+            getBean(getClassBeanName(beanDefinition.getClazz()));
         }
     }
 
@@ -184,9 +208,12 @@ public class TomatoApplicationContext {
         try {
             Object instance;
             if (beanDefinition.isMapperInterface() && beanDefinition.isNeedProxy()) {
-                instance = tomatoMapperProxyFactory.getProxy(clazz);
+                instance = mapperProxyFactory.getProxy(clazz);
             } else {
                 instance = clazz.getDeclaredConstructor().newInstance();
+                if (beanToAdvice.get(clazz) != null) {
+                    instance = aopProxyFactory.getProxy(clazz, beanToAdvice.get(clazz));
+                }
             }
             // 依赖注入
             for (Field declaredField : clazz.getDeclaredFields()) {
@@ -196,7 +223,10 @@ public class TomatoApplicationContext {
                     if (fieldType.isInterface() && fieldType.isAnnotationPresent(RepoMapper.class)) {
                         bean = getBean(declaredField.getName());
                         if (Objects.isNull(bean)) {
-                            bean = tomatoMapperProxyFactory.getProxy(clazz);
+                            bean = mapperProxyFactory.getProxy(clazz);
+                        }
+                        if (beanToAdvice.get(bean.getClass()) != null) {
+                            bean = aopProxyFactory.getProxy(bean.getClass(), beanToAdvice.get(clazz));
                         }
                     } else {
                         bean = getBean(declaredField.getName());
@@ -212,6 +242,43 @@ public class TomatoApplicationContext {
             }
             // 执行实现Aware接口和BeanPostProcessor接口方法
             instance = doAwareAndPost(beanName, instance, clazz);
+            if (clazz.isAnnotationPresent(AopAdvice.class)) {
+                Method[] declaredMethods = clazz.getDeclaredMethods();
+                for (Method declaredMethod : declaredMethods) {
+                    if (declaredMethod.isAnnotationPresent(BeforeExec.class)) {
+                        BeforeExec annotation = declaredMethod.getAnnotation(BeforeExec.class);
+                        Class<?>[] value = annotation.classes();
+                        for (Class<?> aClass : value) {
+                            List<AopExecAdvice> aopExecAdvices = beanToAdvice.get(aClass);
+                            if (null == aopExecAdvices || aopExecAdvices.isEmpty()) {
+                                aopExecAdvices = new ArrayList<>();
+                            }
+                            boolean anyMatch = aopExecAdvices.stream().anyMatch(item -> item.getClass().equals(clazz));
+                            if (!anyMatch) {
+                                aopExecAdvices.add((AopExecAdvice) instance);
+                            }
+                            beanToAdvice.put(aClass, aopExecAdvices);
+                        }
+
+                    }
+                    if (declaredMethod.isAnnotationPresent(AfterExec.class)) {
+                        AfterExec annotation = declaredMethod.getAnnotation(AfterExec.class);
+                        Class<?>[] value = annotation.value();
+                        for (Class<?> aClass : value) {
+                            List<AopExecAdvice> aopExecAdvices = beanToAdvice.get(aClass);
+                            if (null == aopExecAdvices || aopExecAdvices.isEmpty()) {
+                                aopExecAdvices = new ArrayList<>();
+                            }
+                            boolean anyMatch = aopExecAdvices.stream().anyMatch(item -> item.getClass().equals(clazz));
+                            if (!anyMatch) {
+                                aopExecAdvices.add((AopExecAdvice) instance);
+                            }
+                            beanToAdvice.put(aClass, aopExecAdvices);
+                        }
+
+                    }
+                }
+            }
             return instance;
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
@@ -239,18 +306,20 @@ public class TomatoApplicationContext {
         if (instance instanceof ApplicationContextAware) {
             ((ApplicationContextAware) instance).setApplicationContext(this);
         }
-        boolean assignableFromPostProcessor = BeanPostProcessor.class.isAssignableFrom(clazz);
-        // BeanPostProcessor 扩展机制 前置
-        if (assignableFromPostProcessor) {
-            instance = ((BeanPostProcessor)instance).postProcessBeforeInitialization(instance, beanName);
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessors) {
+            // BeanPostProcessor 扩展机制 前置
+            instance = beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
+
         }
         // 自定义初始化
         if (instance instanceof InitializingBean) {
             ((InitializingBean) instance).afterPropertiesSet();
         }
         // BeanPostProcessor 扩展机制 后置
-        if (assignableFromPostProcessor) {
-            instance = ((BeanPostProcessor)instance).postProcessAfterInitialization(instance, beanName);
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessors) {
+            // BeanPostProcessor 扩展机制 前置
+            instance = beanPostProcessor.postProcessAfterInitialization(instance, beanName);
+
         }
         return instance;
     }

@@ -1,4 +1,4 @@
-package com.tomato.sprout.unique;
+package com.tomato.sprout;
 
 import java.io.IOException;
 import java.io.InputStream;

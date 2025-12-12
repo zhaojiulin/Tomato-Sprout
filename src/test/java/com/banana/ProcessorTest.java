@@ -9,13 +9,13 @@ import java.util.Locale;
 public class ProcessorTest implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
-        System.out.println("ProcessorTest初始化前");
+        System.out.println("自定义ProcessorTest初始化前");
         return bean;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
-        System.out.println("ProcessorTest初始化后");
+        System.out.println("自定义ProcessorTest初始化后");
         return bean;
     }
 }

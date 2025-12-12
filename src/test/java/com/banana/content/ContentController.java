@@ -8,7 +8,6 @@ import com.tomato.sprout.web.anno.RequestParam;
 import com.tomato.sprout.web.anno.WebRequestMapping;
 import com.banana.UserService;
 import com.tomato.sprout.web.model.ReqFile;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.*;

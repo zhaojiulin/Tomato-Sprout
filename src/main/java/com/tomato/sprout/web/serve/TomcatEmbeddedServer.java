@@ -3,11 +3,9 @@ package com.tomato.sprout.web.serve;
 import com.tomato.sprout.TomatoApplicationContext;
 import com.tomato.sprout.anno.Component;
 import com.tomato.sprout.interfaces.ApplicationContextAware;
-import com.tomato.sprout.unique.ConfigurationManager;
-import com.tomato.sprout.web.servlet.DispatcherServlet;
+import com.tomato.sprout.ConfigurationManager;
 import com.tomato.sprout.web.servlet.TomatoServletInitializer;
 import org.apache.catalina.Context;
-import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
 
@@ -53,7 +51,7 @@ public class TomcatEmbeddedServer implements EmbeddedServer, ApplicationContextA
 
             // 3. 创建上下文并添加映射Servlet
             Context ctx = tomcat.addContext("", null);
-            // 映射所有请求到Servlet
+            // 启动初始化
             ctx.addServletContainerInitializer(new TomatoServletInitializer(), new HashSet<>());
 
             tomcat.start();

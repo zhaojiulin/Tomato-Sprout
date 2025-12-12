@@ -1,6 +1,6 @@
 package com.tomato.sprout.orm.transaction;
 
-import com.tomato.sprout.unique.DatabaseConnectionPool;
+import com.tomato.sprout.orm.DatabaseConnectionPool;
 
 import java.sql.Connection;
 import java.sql.SQLException;

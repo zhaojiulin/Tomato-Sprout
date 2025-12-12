@@ -7,8 +7,6 @@ import com.tomato.sprout.TomatoBootApplication;
 @TomatoBoot
 public class Main {
     public static void main(String[] args) {
-        TomatoApplicationContext tomatoApplicationContext = TomatoBootApplication.startContext(Main.class, args);
-        System.out.println(tomatoApplicationContext.getBean("userService"));
-        System.out.println(tomatoApplicationContext.getBean("contentService"));
+        TomatoBootApplication.start(Main.class, args);
     }
 }

@@ -1,7 +1,7 @@
 package com.tomato.sprout.web.serve;
 
 import com.tomato.sprout.TomatoApplicationContext;
-import com.tomato.sprout.unique.ConfigurationManager;
+import com.tomato.sprout.ConfigurationManager;
 
 /**
  * @author zhaojiulin

@@ -8,7 +8,7 @@ import com.tomato.sprout.orm.parsing.SqlParseResult;
 import com.tomato.sprout.orm.result.BasicResultTypeHandler;
 import com.tomato.sprout.orm.result.ListResultTypeHandle;
 import com.tomato.sprout.orm.transaction.BaseTransactionalService;
-import com.tomato.sprout.unique.DatabaseConnectionPool;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Set;
 
 
-public class TomatoMapperProxyFactory {
+public class MapperProxyFactory {
     static {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");

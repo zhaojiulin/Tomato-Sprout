@@ -1,5 +1,6 @@
 package com.tomato.sprout.web.servlet;
 
+import com.tomato.sprout.web.SecurityHeadersFilter;
 import jakarta.servlet.*;
 import jakarta.servlet.annotation.MultipartConfig;
 
@@ -22,6 +23,7 @@ public class TomatoServletInitializer implements ServletContainerInitializer {
                 "dispatcherServlet", // Servlet名称
                 dispatcherServlet
         );
+        ctx.addFilter("filter", new SecurityHeadersFilter());
 
         // 3. 设置URL映射
         registration.addMapping("/*"); // 或你的特定路径，如 "/api/*"`

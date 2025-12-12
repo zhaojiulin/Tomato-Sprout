@@ -1,4 +1,6 @@
-package com.tomato.sprout.unique;
+package com.tomato.sprout.orm;
+
+import com.tomato.sprout.ConfigurationManager;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
